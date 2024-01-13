@@ -6,10 +6,6 @@ import "./interfaces/IGaladorV3PoolDeployer.sol";
 import "./GaladorV3Pool.sol";
 
 contract GaladorV3PoolDeployer is IGaladorV3PoolDeployer {
-    bytes constant creationCode = type(GaladorV3Pool).creationCode;
-    bytes32 constant initCodePairHash =
-        keccak256(abi.encodePacked(creationCode));
-
     struct Parameters {
         address factory;
         address token0;
@@ -46,17 +42,8 @@ contract GaladorV3PoolDeployer is IGaladorV3PoolDeployer {
         uint24 fee,
         int24 tickSpacing
     ) external override onlyFactory returns (address pool) {
-        bytes memory bytecode = creationCode;
-        bytes32 salt = keccak256(abi.encode(token0, token1, fee));
-        assembly {
-            pool := create2(0, add(bytecode, 32), mload(bytecode), salt)
-        }
-        GaladorV3Pool(pool).initialize(
-            factoryAddress,
-            token0,
-            token1,
-            fee,
-            tickSpacing
-        );
+        parameters = Parameters({factory: factoryAddress, token0: token0, token1: token1, fee: fee, tickSpacing: tickSpacing});
+        pool = address(new GaladorV3Pool{salt: keccak256(abi.encode(token0, token1, fee))}());
+        delete parameters;
     }
 }

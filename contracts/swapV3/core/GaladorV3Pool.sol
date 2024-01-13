@@ -20,7 +20,7 @@ import "./libraries/SwapMath.sol";
 
 import "./interfaces/IGaladorV3PoolDeployer.sol";
 import "./interfaces/IGaladorV3Factory.sol";
-import "./interfaces/IERC20Minimal.sol";
+import "./interfaces/IERC20Minimal.sol"; 
 import "./interfaces/callback/IGaladorV3MintCallback.sol";
 import "./interfaces/callback/IGaladorV3SwapCallback.sol";
 import "./interfaces/callback/IGaladorV3FlashCallback.sol";
@@ -172,6 +172,14 @@ contract GaladorV3Pool is IGaladorV3Pool {
                 msg.sender == IGaladorV3Factory(factory).owner()
         );
         _;
+    }
+
+    constructor() {
+        int24 _tickSpacing;
+        (factory, token0, token1, fee, _tickSpacing) = IGaladorV3PoolDeployer(msg.sender).parameters();
+        tickSpacing = _tickSpacing;
+
+        maxLiquidityPerTick = Tick.tickSpacingToMaxLiquidityPerTick(_tickSpacing);
     }
 
     /// @dev Common checks for valid tick inputs.
@@ -382,25 +390,6 @@ contract GaladorV3Pool is IGaladorV3Pool {
         emit Initialize(sqrtPriceX96, tick);
     }
 
-    /// @inheritdoc IGaladorV3PoolActions
-    /// @dev not locked because it initializes unlocked
-    function initialize(
-        address _factory,
-        address _token0,
-        address _token1,
-        uint24 _fee,
-        int24 _tickSpacing
-    ) external override {
-        factory = _factory;
-        token0 = _token0;
-        token1 = _token1;
-        fee = _fee;
-        tickSpacing = _tickSpacing;
-        maxLiquidityPerTick = Tick.tickSpacingToMaxLiquidityPerTick(
-            _tickSpacing
-        );
-    }
-
     struct ModifyPositionParams {
         // the address that owns the position
         address owner;
@@ -606,14 +595,11 @@ contract GaladorV3Pool is IGaladorV3Pool {
         uint256 balance1Before;
         if (amount0 > 0) balance0Before = balance0();
         if (amount1 > 0) balance1Before = balance1();
-
-        // ISSUE IS WITH THIS!
         IGaladorV3MintCallback(msg.sender).galadorV3MintCallback(
             amount0,
-            amount1, 
+            amount1,
             _data
         );
-        
         if (amount0 > 0)
             require(balance0Before.add(amount0) <= balance0(), "M0");
         if (amount1 > 0)
